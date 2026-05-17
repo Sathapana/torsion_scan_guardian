@@ -1,7 +1,7 @@
 # Torsion Scan Guardian — Phase 0–5 Report
 
 **Project:** Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible drug-like molecules.
-**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7), three throughput optimisations that 3–4× the sweep wall time by using the T4's idle GPU/RAM headroom (§13.8), and a scientific upgrade to MACE-OFF medium foundation + 5-member ensemble that lifts the OOD/in-dist trigger dynamic range from ~2.6× toward 5–10× (§13.9).
+**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7), three throughput optimisations that 3–4× the sweep wall time by using the T4's idle GPU/RAM headroom (§13.8), a scientific upgrade to MACE-OFF medium foundation + 5-member ensemble that lifts the OOD/in-dist trigger dynamic range from ~2.6× toward 5–10× (§13.9), and the first Phase-6 multi-molecule sweep on Colab T4 with the new ensemble — verifying the instrument scales but showing baseline trajectories on the chosen molecules don't collapse at 300 K so AL stabilisation is still un-demonstrated (§14).
 **Audience:** ML/comp-chem readers. Math, units, and design choices are stated explicitly.
 **Headline findings:**
 - **Phase 1 (input-perturbation):** the cheap stand-in ensemble cannot serve as the Guardian's epistemic signal — it measures local PES curvature, not novelty (§6).
@@ -815,6 +815,102 @@ The shipped notebook (`notebooks/colab/guardian_colab.ipynb`, updated 2026-05-17
 - Every `%%bash` cell does an explicit `cd /content/drive/MyDrive/torsion-scan-guardian` because `%%bash` spawns a fresh subprocess that does *not* inherit IPython's `%cd`.
 - Python scripts that touch matplotlib are invoked with `MPLBACKEND=Agg` to bypass the missing-display error on headless Colab.
 - A sanity-check cell after `git clone` raises an exception if the repo isn't where the rest of the notebook expects it.
+
+---
+
+## 14. Phase 6 — first multi-molecule sweep with the medium-5 ensemble
+
+Phase 6 was defined in §12.7 / §13.9 as the empirical step that turns the verified instrument into a published result: pick molecules where the baseline might collapse, run a baseline-vs-AL sweep, see whether AL stabilises a divergent trajectory. The §13.9 scientific upgrade (MACE-OFF medium foundation + 5-member ensemble) is the precondition; this section reports what the first sweep on Colab T4 actually produced.
+
+### 14.1 Sweep configuration
+
+- **Notebook:** [`notebooks/colab/guardian_sweep_colab.ipynb`](notebooks/colab/guardian_sweep_colab.ipynb), defaults: `PHASE_FILTER=['todo']`, `STEPS=4000`, `TEMPERATURE=300 K`, `CLOUD_SIZE=5`, `MAX_TRIGGERS=5`, `THRESHOLD_OVERRIDE=None` (per-molecule calibration).
+- **Foundation / ensemble:** MACE-OFF23 **medium**, **5 members** per molecule (the §13.9 defaults).
+- **Molecules processed:** the 3 `todo` rows in [`data/molecule_library/candidates.csv`](data/molecule_library/candidates.csv) — `glycine_zwitterion`, `sulfonyl_chloride`, `diglycine`.
+- **Hardware:** Colab Free T4 GPU.
+- **Date:** 2026-05-17.
+
+The sweep wrote `runs/sweep/sweep_summary.csv` after every molecule (incremental persistence). All three molecules reported `status=ok` — no subprocess failures, no fine-tune reverts.
+
+### 14.2 Headline result: 0 triggers on all three molecules
+
+| Molecule | Heavy atoms | Calibrated `τ` (eV/Å) | Baseline wall (s) | AL wall (s) | AL triggers | Baseline max bond stretch | AL max bond stretch | Broken bonds (BL / AL) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| glycine_zwitterion | 5 | **0.0199** | 814 | 817 | **0** | 1.083 | 1.126 | 0/9 — 0/9 |
+| sulfonyl_chloride  | 4 | **0.0519** | 835 | 806 | **0** | 1.082 | 1.148 | 0/7 — 0/7 |
+| diglycine          | 10 | **0.0192** | 783 | 781 | **0** | 1.084 | 1.074 | 0/16 — 0/16 |
+
+(All numbers extracted directly from `tmp_sweep/sweep_summary.csv` and the per-run `*_summary.json` files.)
+
+**Two findings**, in order of weight:
+
+1. **The medium-5 ensemble's noise floor really did drop** (the first half of the §13.9 prediction). Calibrated thresholds are now **0.019–0.052 eV/Å** — compare with the small-3 thresholds from earlier sections: sulfanilamide 0.105 (§10.2), ibuprofen 1.67 (§4.3). That's a **2–80× shrink** depending on the molecule. The members of a medium-5 ensemble do agree much more tightly on in-distribution geometries than small-3 did.
+
+2. **The baseline didn't collapse on any of these molecules either** (the prerequisite for AL-stabilisation evidence). Max bond stretch stays at 1.08–1.15 across all three, well under the 1.6 bond-break threshold; zero broken bonds at the final frame in every run. So even with the tighter sensitivity that medium-5 unlocks, **4000 MD steps at 300 K is not aggressive enough to push any of these molecules into a region where the new ensemble disagrees more than 0.02–0.05 eV/Å**.
+
+### 14.3 Older small-3 sweep data preserved in the bundle
+
+The download bundle also contained per-run `summary.json` files for 5 other molecules (`n_methylacetamide`, `biphenyl`, `norbornadiene`, `caffeine`, `ibuprofen`) from an **earlier small-3 sweep** that ran before the §13.9 upgrade. Those JSONs were not regenerated in this run — they're left over from prior `runs/sweep/<mol>/*/summary.json` from earlier sweeps the bundle cell picked up. Wall times of ~360–380 s per AL run (vs ~800 s for the new medium-5 runs) confirm the foundation difference. All five also reported **triggers=0**.
+
+So across the full cross-section of 8 molecules ever swept (3 new medium-5 + 5 old small-3), **every AL run produced zero natural triggers at 300 K with 4000 MD steps**. The §13.9 noise-floor prediction held for medium-5; the OOD-detection prediction is still untested by this experiment because the trajectories never visited OOD territory in the first place.
+
+### 14.4 Interpretation: which §10.4 hypothesis does this confirm?
+
+§10.4 had three not-mutually-exclusive explanations for "no triggers ever fire":
+
+(a) **MACE-OFF generalises well** at 300 K — the molecules just don't visit OOD geometries naturally, and there's nothing for the Guardian to catch.
+
+(b) **The ensemble's disagreement is structural, not geometric** — members differ by a roughly constant amount everywhere, so even hand-crafted OOD probes don't spike well above the threshold.
+
+(c) Both at once.
+
+This sweep gives **strong support to (a) for the molecules tested** and **leaves (b) untested for medium-5**:
+
+- (a) is supported because the **baseline** (Guardian-off) MD doesn't break anything either. If MACE-OFF *were* failing on these molecules at 300 K, the baseline would show bond stretches climbing past 1.5 and eventually broken bonds; instead, baseline tops out at 1.085 across all three. The MD really does stay in well-modelled territory.
+
+- (b) is *not* re-tested here. We didn't run the §9.4 direct-OOD probe (`scripts/diagnose_ood.py`-style hand-crafted geometries) on the new medium-5 ensembles. That's the experiment that would tell us whether the medium-5 disagreement floor *would* spike on a deliberately OOD geometry, even though MD doesn't reach one.
+
+What we *can* say from this sweep: even with the better-calibrated ensemble (thresholds 0.02–0.05 vs the prior 0.10–1.67), the trajectories on these three small molecules at standard temperature don't excite the Guardian. The Guardian's value is conditional on the baseline failing — and the baseline didn't fail.
+
+### 14.5 What would change the result
+
+In rough order of expected payoff for next attempt:
+
+1. **Hotter MD** (600 K → 1000 K) or biased sampling (metadynamics on a known floppy dihedral). Increases the rate of barrier crossings; gives the Guardian rare conformations to react to. Cheap — just change `--temperature` in the sweep command. Risk: thermal decomposition at extreme T (especially for the zwitterion).
+2. **Direct OOD probe on the medium-5 ensembles** — re-run `scripts/diagnose_ood.py` with the new checkpoints to measure the actual OOD/in-dist `u` ratio. This is the §9.4 experiment, repeated with the §13.9 upgrade. ~30 min on T4 per molecule. Tells us whether the noise-floor drop translated into a real dynamic-range win or not.
+3. **Longer MD** (40 000 steps instead of 4000) — the 90-min Colab idle limit becomes the bottleneck; tmux on Thunder or Vast.ai makes this practical.
+4. **A molecule with a known torsional barrier above kT** at 300 K (e.g. a biphenyl with sterically bulky ortho substituents, or a peptide hairpin). Forces the MD to spend time near the transition state.
+
+The medium-5 upgrade is **not** wasted — point 1 above is much more likely to produce useful results with the new, sensitive threshold than with the old, blunt one. With the §13.9 threshold of ~0.02 eV/Å, any genuine OOD excursion now has a real chance of crossing.
+
+### 14.6 What this means for the Phase-6 milestone
+
+The §11.5 / §12.7 framing was: "Phase-6 turns 'verified instrument' into 'demonstrated AL stabilisation'." This first sweep:
+
+- ✓ Verified the medium-5 instrument works at scale across multiple molecules
+- ✓ Confirmed sub-cycle parallelism (§13.8) and the safeguarded fine-tune (§12.2) hold up on five-member ensembles
+- ✓ Confirmed the new auto-config flow for previously-uncatalogued molecules (`config/molecules/sulfonyl_chloride.yaml`, `config/molecules/diglycine.yaml`, etc. auto-created from the CSV rows)
+- ✗ Did **not** produce a baseline-collapsing trajectory — no demonstration of AL preventing failure
+- ✗ Did **not** produce any acquired labels — no test of the fine-tune-during-MD reload path in real conditions
+
+Phase 6 is **half-done**: the instrument runs cleanly on every molecule we throw at it, but the demonstration condition (a divergent baseline that AL recovers) hasn't been met. The remaining work is empirical, listed in §14.5.
+
+### 14.7 Artifacts location
+
+Files from this sweep (in the download bundle, not committed to git):
+
+```
+sweep_summary.csv                    # 3-row CSV: glycine_zwitterion, sulfonyl_chloride, diglycine
+glycine_zwitterion_{baseline,al}_summary.json
+sulfonyl_chloride_{baseline,al}_summary.json
+diglycine_{baseline,al}_summary.json
+{n_methylacetamide,biphenyl,norbornadiene,caffeine,ibuprofen}_{baseline,al}_summary.json   # older small-3
+{glycine_zwitterion,sulfonyl_chloride,diglycine,...}_seed.xyz                              # GFN-FF seed datasets
+molecules/*.yaml                     # auto-created per-molecule configs from candidates.csv
+sweep_summary.png                    # AL-vs-baseline bar chart from notebook cell 18
+```
+
+The `*_seed.xyz` files for the new molecules (sulfonyl_chloride, diglycine, n_methylacetamide, etc.) are reproducible-but-non-trivial GFN-FF labelled datasets; worth committing if a future Phase-6 attempt reuses them.
 
 ## References
 

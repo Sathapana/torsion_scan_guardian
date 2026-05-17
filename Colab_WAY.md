@@ -27,6 +27,35 @@ Colab Free gives you a T4 GPU on request:
 
 The notebook checks this in cell 1 (`torch.cuda.is_available()`). If you see `Device: CPU`, you didn't get the GPU yet — usually a queue issue at peak hours; retry in 10 minutes.
 
+#### Which accelerator should I pick on Colab? (decision table for *this project*)
+
+Colab Pro and Pro+ unlock additional GPUs and TPUs. Their value for the Torsion Scan Guardian workload (MACE-OFF small, ~5 M params, ≤40-atom drug-like molecules, 3-member ensemble) is not the same as the raw spec sheet — see the rightmost column.
+
+| Accelerator | Memory | FP32 / FP16 (TFLOPS) | Arch / year | Colab tier | Verdict for **this** project |
+| --- | ---: | ---: | --- | --- | --- |
+| **T4 GPU** | 16 GB | 8.1 / 65 | Turing 2018 | **Free** + Pro | **✓ Default; what we tested.** Phase-5 demo in ~5 min, full 7-molecule sweep in ~2 h. Fine for ≤50 heavy atoms. |
+| **L4 GPU** | 24 GB | 30 / 121 | Ada 2023 | Pro / Pro+ | **✓ Best price/perf if you have Pro.** Roughly 2–3× T4 speed for our workload; finishes sweeps in ~1 h. Burns Pro compute units a bit faster but the wall-time win is real. |
+| **A100 GPU** (40 GB) | 40 GB | 19.5 / 312 | Ampere 2020 | Pro / Pro+ | **✓ for ≥50-atom molecules or 5+ ensemble members.** Overkill for sulfanilamide-scale (19 atoms) — see [REPORT §13.7](REPORT.md): GPU speedup is bounded by graph-construction overhead at small atom counts, so A100 is only ~1.3× faster than T4 here. |
+| **H100 GPU** | 80 GB | 67 / 1979 (FP16-sparse) | Hopper 2022 | Pro+ (rare/queued) | **✗ Wrong fit.** Built for FP8 LLM training and very large-batch workloads. MACE-OFF small uses ~5 M params; you'd burn 30–50× T4 compute units for ~0% improvement on this workload. Useful elsewhere, not here. |
+| **G4 GPU** | (varies) | (varies) | — | (verify in Colab UI) | **? — not a standard NVIDIA SKU.** If Colab exposes this in the runtime selector, click "Show resources" and check `nvidia-smi`; it's likely an A4 / L4 / T4 re-badge for one of Google's instance families. Treat as "verify before relying on it." |
+| **TPU v5e-1** | 16 GB HBM | ~197 BF16 | TPU v5e 2023 | Pro / Pro+ | **✗ Not compatible.** MACE-OFF runs on PyTorch + e3nn; e3nn's spherical-harmonic kernels don't go through `torch_xla` cleanly. Porting would be a project of its own. TPUs shine on TensorFlow / JAX / Flax workloads. |
+| **TPU v6e-1** (Trillium) | 32 GB HBM | ~918 BF16 | TPU v6e 2024 | Pro+ | **✗ Same reason as v5e-1.** Brand-new + more memory, but no torch_xla path that runs e3nn out of the box. |
+
+**Bottom line for this project:**
+- **Free tier:** stick with **T4**. The shipped notebooks are tested on it; the §13.7 GPU validation numbers all come from T4.
+- **Have Colab Pro / Pro+:** **L4** if it's available (sweet-spot price/perf), otherwise T4. Step up to A100 only when your molecule is ≥40 heavy atoms or you've increased `--n_probes` (ensemble members) past 5.
+- **Skip H100, TPUs, and any "G4 GPU" you can't verify.** Wrong tool for a 5 M-param equivariant GNN inferring on small molecules.
+
+#### Why "bigger GPU" isn't a linear speedup here
+
+This bites people coming from LLM workflows. For LLM inference you scale roughly linearly with FP16 TFLOPS, so going T4 → A100 → H100 is a real ~30× total speedup. For *this* project:
+
+- MACE-OFF small's forward pass on a 20-atom molecule is dominated by **graph construction** (neighbour-list build, edge-feature gathers) and **small-kernel launches**, not by big matmuls.
+- GPU underutilisation: the actual FLOPs per step are tiny. A T4 finishes a forward pass in ~30 ms; an A100 in ~23 ms; an H100 in ~21 ms. The MD step takes the same wall time on all of them ± noise.
+- This is **why we only saw ~2× speedup vs CPU on Colab T4** (REPORT §13.7) — the bottleneck is overhead, not compute.
+
+So pick the cheapest accelerator that's available to you (T4 on free, L4 on Pro). The difference between T4 and H100 for this workload is negligible in wall time and large in compute-unit burn rate.
+
 ### Step 2 — mount Google Drive and clone the repo into it
 
 Why Drive: results (`runs/`, `figures/`, fine-tune checkpoints, seed datasets) **persist across Colab sessions**. If you don't mount Drive, every Colab disconnect wipes all of your work.

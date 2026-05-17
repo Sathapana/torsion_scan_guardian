@@ -1,0 +1,10 @@
+name,smiles,charge,multiplicity,heavy_atoms,why_interesting,phase,config_path
+ibuprofen,CC(C)Cc1ccc(C(C)C(=O)O)cc1,0,1,15,"In-coverage drug (SPICE); Phase 0-5 baseline. Used to verify the whole pipeline. AL does not trigger naturally even at 600 K (REPORT §5-9).",done,config/molecules/ibuprofen.yaml
+sulfanilamide,Nc1ccc(S(=O)(=O)N)cc1,0,1,11,"Sulfonamide + aryl amine; MACE-OFF baseline RMSE_F is 2.5x higher than ibuprofen. Cross-molecule validation (§10) and Phase-5 long-run demo (§12.5). 5-cycle AL completes cleanly with cloud + safeguard.",done,config/molecules/sulfanilamide.yaml
+glycine_zwitterion,[NH3+]CC(=O)[O-],0,1,5,"Net-neutral zwitterion (NH3+/COO-) on a tiny molecule; SPICE under-represents zwitterionic forms. First Phase-6 candidate (§12.7). GFN-FF handles natively.",todo,config/molecules/glycine_zwitterion.yaml
+sulfonyl_chloride,CS(=O)(=O)Cl,0,1,4,"Methanesulfonyl chloride; hypervalent S + Cl in the same group. SPICE has little of this. Phase-6 backup candidate.",todo,
+diglycine,NCC(=O)NCC(=O)O,0,1,10,"Glycyl-glycine (peptide bond model); intermediate-flexibility peptide. Phase-6 candidate for testing AL on backbone phi/psi exploration.",todo,
+n_methylacetamide,CC(=O)NC,0,1,4,"NMA — classic peptide-bond model compound used in many AMBER/CHARMM benchmarks. Probably in MACE-OFF coverage but cheap to test as a sanity check.",candidate,
+biphenyl,c1ccc(-c2ccccc2)cc1,0,1,12,"Famous inter-ring torsion barrier (~2-5 kcal/mol, minimum at ~45 deg). Classic FF benchmark. Likely in-coverage but tests aromatic-aromatic torsion handling.",candidate,
+norbornadiene,C1=CC2CC=CC12,0,1,7,"Strained bicyclic dihydrocarbon; unusual bond angles. Tests MACE-OFF on strained-ring chemistry.",candidate,
+caffeine,Cn1cnc2c1c(=O)n(C)c(=O)n2C,0,1,14,"Multiple fused rings + methylated nitrogens. Standard drug-like benchmark; likely in coverage.",candidate,

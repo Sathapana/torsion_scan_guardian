@@ -95,6 +95,23 @@ src/guardian/
 4. Push and open a PR. The CI workflow ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the test suite on Linux Python 3.11; the PR is unmergeable while CI is red.
 5. Keep PRs scoped — easier to review one focused change than five mixed ones.
 
+## Adding a new molecule
+
+The project uses a three-tier molecule convention so molecule-specific work doesn't pollute the controller code:
+
+| Tier | Where it lives | When to use it |
+| --- | --- | --- |
+| **1. One-off** | `--smiles "..."` on the CLI | Quick test, single experiment, no plan to re-run |
+| **2. Per-molecule config** | `config/molecules/<name>.yaml` | You'll run experiments on this molecule more than once and need to remember the threshold / temperature / run-dir settings |
+| **3. Catalog entry** | Append a row to `data/molecule_library/candidates.csv` | The molecule is a Phase-6 candidate or a benchmark you want documented even if not yet run |
+
+Most contributions will touch tiers 2 + 3 together: a new YAML config plus a catalog row pointing at it. See [`config/molecules/glycine_zwitterion.yaml`](config/molecules/glycine_zwitterion.yaml) for the recommended template — it includes a suggested-run-order comment block at the bottom that walks through `--calibrate` → seed-build → fine-tune → baseline-vs-AL.
+
+Things to remember when adding a charged or radical species:
+- Set `molecule.charge` and `molecule.multiplicity` correctly. Most molecules are `0 / 1`; zwitterions are also net `0 / 1` but visibly carry formal charges in the SMILES.
+- The current `guardian.oracle.xtb_subprocess.XTBCalculator` does **not** pass `--chrg` / `--uhf` to xtb. GFN-FF still works because it autodetects from the input geometry; GFN2-xTB and DFT would need the kwarg added (~10 LOC change). Document this in the YAML comment header if you swap oracles.
+- Calibrate the threshold *after* the seed-fine-tune ensemble exists for the molecule — calibrating against the input-perturbation ensemble (Phase 1) gives the wrong answer (REPORT §6).
+
 ## What's worth working on right now
 
 Pick from the list in [REPORT.md §12.7](REPORT.md):

@@ -1,0 +1,58 @@
+# Glycine zwitterion — first Phase-6 candidate (REPORT §12.7 item 1).
+#
+# Net-zero formal charge but ions on the same molecule: NH3+ ... -OOC. SPICE
+# under-represents zwitterionic forms relative to neutral amines / acids, so
+# MACE-OFF23 may extrapolate poorly here. Hypothesis: baseline MD diverges
+# within a few thousand steps; the Guardian (Phase 4/5 loop) should detect
+# and stabilise.
+#
+# Oracle compatibility note:
+#   - GFN-FF (via `xtb --gfnff`, what we use) handles zwitterions natively
+#     because the *net* charge passed via `--chrg` is 0 — same as a neutral
+#     molecule. No code change needed.
+#   - If you swap the oracle to GFN2-xTB or DFT, the partial charge state
+#     starts to matter. `guardian.oracle.xtb_subprocess.XTBCalculator` does
+#     NOT currently pass `--chrg` / `--uhf`; add those as kwargs before
+#     trusting any non-GFN-FF oracle on this molecule.
+
+molecule:
+  smiles: "[NH3+]CC(=O)[O-]"
+  charge: 0          # net charge — molecule is overall neutral
+  multiplicity: 1
+
+md:
+  temperature_K: 300
+  total_steps: 5000
+  timestep_fs: 0.5
+  friction: 0.02     # bumped vs default 0.01 — charged species may have
+                     # larger force fluctuations; higher friction stabilises
+                     # Langevin integration without slowing dynamics noticeably
+  log_every: 50
+  checkpoint_every: 100
+
+model:
+  backbone: mace-off-small
+  n_probes: 3
+  position_noise_A: 0.005
+
+uncertainty:
+  threshold: 0.05    # placeholder — RUN `--calibrate` first and update this value
+  warmup_steps: 100
+
+io:
+  run_dir: runs/glycine_zwitterion/
+
+# Suggested run order (REPORT §12.7 item 1):
+#   1. python -m guardian.cli --config config/molecules/glycine_zwitterion.yaml --calibrate
+#      -> note the suggested threshold, paste it above
+#   2. python scripts/build_seed_dataset.py --smiles "[NH3+]CC(=O)[O-]" \
+#        --out data/seed/glycine_zwitterion_seed.xyz
+#   3. for s in 0 1 2; do python scripts/finetune_member.py --seed $s --epochs 5 \
+#        --train-file data/seed/glycine_zwitterion_seed.xyz \
+#        --out-root runs/finetune_glycine; done
+#   4. python -m guardian.cli --config config/molecules/glycine_zwitterion.yaml \
+#        --checkpoints runs/finetune_glycine/*/checkpoints/*.model
+#      -> BASELINE: does MD diverge? if yes, proceed:
+#   5. Same command + --online-finetune --seed-data-file data/seed/glycine_zwitterion_seed.xyz \
+#        --cloud-size 5 --max-triggers 10
+#      -> AL run: does the Guardian catch the divergence and stabilise the trajectory?

@@ -1,0 +1,28 @@
+# Ibuprofen — Phase 0–5 baseline (in MACE-OFF23 coverage; AL does not trigger
+# naturally even at 600 K). See REPORT.md §5, §6, §9 for full experimental results
+# on this molecule. Use this config to reproduce the Phase 1 / Phase 2 numbers.
+
+molecule:
+  smiles: "CC(C)Cc1ccc(C(C)C(=O)O)cc1"
+  charge: 0
+  multiplicity: 1
+
+md:
+  temperature_K: 300
+  total_steps: 5000
+  log_every: 50
+  checkpoint_every: 100
+
+model:
+  backbone: mace-off-small
+  n_probes: 3
+  position_noise_A: 0.005
+
+uncertainty:
+  # Calibrated for the Phase-1 input-perturbation ensemble (REPORT §4.3).
+  # For the Phase-2 seed-fine-tune ensemble, re-run with --calibrate first.
+  threshold: 1.67
+  warmup_steps: 100
+
+io:
+  run_dir: runs/ibuprofen/

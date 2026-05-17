@@ -1,0 +1,28 @@
+# Sulfanilamide — cross-molecule validation (REPORT §10) and Phase-5 long-run
+# demo (§12.5). MACE-OFF23 small's baseline force RMSE is ~2.5× higher on this
+# molecule than on ibuprofen, indicating the sulfonamide / aryl-amine combination
+# is partially OOD for SPICE. Threshold below is calibrated for the Phase-2
+# seed-fine-tuned ensemble at runs/finetune_sulf/.
+
+molecule:
+  smiles: "Nc1ccc(S(=O)(=O)N)cc1"
+  charge: 0
+  multiplicity: 1
+
+md:
+  temperature_K: 300
+  total_steps: 5000
+  log_every: 50
+  checkpoint_every: 100
+
+model:
+  backbone: mace-off-small
+  n_probes: 3
+  position_noise_A: 0.005
+
+uncertainty:
+  threshold: 0.105   # calibrated 1.5 × p99 on relaxed minimum (REPORT §10.2)
+  warmup_steps: 100
+
+io:
+  run_dir: runs/sulfanilamide/

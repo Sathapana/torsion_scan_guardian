@@ -76,6 +76,9 @@ class GuardianCfg(BaseModel):
 
 
 def load_config(path: str | Path) -> GuardianCfg:
-    with open(path) as f:
+    # Explicit UTF-8 so YAMLs containing non-ASCII characters (arrows, accented
+    # author names, ÅÉΩ etc.) load on Windows machines whose default codepage
+    # is something like cp874 (Thai) or cp1252.
+    with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
     return GuardianCfg(**raw)

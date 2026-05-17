@@ -5,8 +5,8 @@ For each requested molecule:
   2. Build the GFN-FF seed dataset.
   3. Fine-tune 3 MACE-OFF members on the seed.
   4. Calibrate the uncertainty threshold from the relaxed minimum.
-  5. Run a *baseline* MD (Guardian disabled — threshold = 999, max_triggers = 1).
-  6. Run an *AL* MD (Guardian active — cloud-5, safeguarded fine-tunes, calibrated threshold).
+  5. Run a *baseline* MD (Guardian disabled -- threshold = 999, max_triggers = 1).
+  6. Run an *AL* MD (Guardian active -- cloud-5, safeguarded fine-tunes, calibrated threshold).
   7. Compute post-hoc stability metrics on both trajectories.
 
 A running summary is written to `runs/sweep/sweep_summary.csv` after every molecule
@@ -158,7 +158,7 @@ def run_subprocess(cmd: list[str], label: str, env: dict | None = None,
 
 def build_seed(row: dict, seed_path: Path) -> int:
     if seed_path.exists():
-        print(f"[sweep] seed exists at {seed_path.relative_to(REPO_ROOT)} — skip build")
+        print(f"[sweep] seed exists at {seed_path.relative_to(REPO_ROOT)} -- skip build")
         return 0
     return run_subprocess([
         sys.executable, "scripts/build_seed_dataset.py",
@@ -170,7 +170,7 @@ def finetune_ensemble(row: dict, seed_path: Path, ft_root: Path, device: str) ->
     expected = [ft_root / f"member_seed{s}" / "checkpoints" / f"member_seed{s}_run-{s}.model"
                 for s in (0, 1, 2)]
     if all(p.exists() for p in expected):
-        print(f"[sweep] all 3 members exist at {ft_root.relative_to(REPO_ROOT)} — skip fine-tune")
+        print(f"[sweep] all 3 members exist at {ft_root.relative_to(REPO_ROOT)} -- skip fine-tune")
         return 0
     for s in (0, 1, 2):
         rc, _, _, _ = run_subprocess([

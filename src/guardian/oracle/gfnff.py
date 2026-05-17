@@ -14,7 +14,7 @@ class OracleLabel:
 
 
 def gfnff_calculator() -> XTBCalculator:
-    """Default GFN-FF calculator — subprocess-driven xtb CLI (see xtb_subprocess.py)."""
+    """Default GFN-FF calculator -- subprocess-driven xtb CLI (see xtb_subprocess.py)."""
     return XTBCalculator(method="gfnff")
 
 

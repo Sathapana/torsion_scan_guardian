@@ -10,7 +10,7 @@ from ase.calculators.calculator import Calculator, all_changes
 class EnsemblePrediction:
     energy: float                    # eV, evaluated at the true (unperturbed) geometry
     forces: np.ndarray               # (N, 3) eV/Å, true-geometry forces driving the integrator
-    forces_std_per_atom: np.ndarray  # (N,)   eV/Å, std across probes/members — uncertainty proxy
+    forces_std_per_atom: np.ndarray  # (N,)   eV/Å, std across probes/members -- uncertainty proxy
 
 
 def _pick_device(requested: str) -> str:
@@ -50,7 +50,7 @@ class MACEOffEnsemble:
 
     def predict(self, atoms: Atoms) -> EnsemblePrediction:
         forces = []
-        # Probe 0 is unperturbed — used for both std and the integrator's E/F.
+        # Probe 0 is unperturbed -- used for both std and the integrator's E/F.
         probe = atoms.copy()
         probe.calc = self.calc
         energy0 = float(probe.get_potential_energy())
@@ -78,11 +78,11 @@ class SeedFinetuneEnsemble:
     """Real epistemic ensemble: N independently-fine-tuned MACE checkpoints.
 
     `predict` returns the *first* member's energy and forces (used by the MD
-    integrator — picking member 0 keeps the dynamics deterministic and
+    integrator -- picking member 0 keeps the dynamics deterministic and
     decoupled from ensemble composition), and the per-atom std of forces
     across all members as the uncertainty signal.
 
-    Same interface as `MACEOffEnsemble` — drop-in replacement in the controller.
+    Same interface as `MACEOffEnsemble` -- drop-in replacement in the controller.
     """
 
     def __init__(self, calcs: list):

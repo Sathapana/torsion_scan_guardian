@@ -82,7 +82,7 @@ def collect_md(out_path: Path, smiles: str, temperature_K: float,
 
 
 # (name, SMARTS pattern, indices_into_match for the 4 dihedral atoms)
-# Targets are tried in order — those without a SMARTS match in the molecule are skipped.
+# Targets are tried in order -- those without a SMARTS match in the molecule are skipped.
 TORSION_TARGETS = [
     # ibuprofen-class
     ("alpha-carbonyl", "[c][C;H1]([CH3])C(=O)O", (0, 1, 3, 4)),

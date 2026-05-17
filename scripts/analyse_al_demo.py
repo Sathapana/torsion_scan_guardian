@@ -46,7 +46,7 @@ def main():
                     ha="center", color="#d62728")
     ax.set_xlabel("MD step")
     ax.set_ylabel("max per-atom force std u (eV/A)")
-    ax.set_title(f"Active-learning timeline — {summary['molecule']}  "
+    ax.set_title(f"Active-learning timeline -- {summary['molecule']}  "
                  f"({summary['n_triggers']} cycles in {summary['elapsed_s']:.0f}s)")
     ax.legend(loc="upper right", fontsize=9)
     ax.grid(alpha=0.3)
@@ -83,7 +83,7 @@ def main():
     axes[1].set_xticks([]); axes[1].set_yticks([])
     axes[1].set_title("Stability summary")
 
-    fig.suptitle(f"Stability — {summary['molecule']}", y=1.02)
+    fig.suptitle(f"Stability -- {summary['molecule']}", y=1.02)
     fig.tight_layout()
     fig.savefig(figs / f"{out_prefix}_stability.png", dpi=140, bbox_inches="tight")
     plt.close(fig)

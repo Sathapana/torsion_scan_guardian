@@ -141,7 +141,7 @@ def online_finetune_member(
             break
 
     # Safeguard: if val force RMSE regressed by more than `regression_tol` relative to the
-    # input checkpoint, refuse the update — keep the old weights for this member this cycle.
+    # input checkpoint, refuse the update -- keep the old weights for this member this cycle.
     accepted, reason = True, "improved or within tolerance"
     if initial_rmse is not None and final_rmse is not None:
         if final_rmse > initial_rmse * (1.0 + regression_tol):

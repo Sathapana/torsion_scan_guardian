@@ -97,7 +97,7 @@ def main():
             family="monospace",
             bbox=dict(boxstyle="round", facecolor="#fafafa", edgecolor="#cccccc"))
 
-    fig.suptitle("AL vs baseline — same molecule, same MD step budget", y=1.00)
+    fig.suptitle("AL vs baseline -- same molecule, same MD step budget", y=1.00)
     fig.tight_layout()
     fig.savefig(figs / "al_vs_baseline.png", dpi=140, bbox_inches="tight")
     plt.close(fig)

@@ -1,4 +1,4 @@
-"""Stability metrics for MD trajectories — quantify 'is the molecule still intact'.
+"""Stability metrics for MD trajectories -- quantify 'is the molecule still intact'.
 
 Used post-hoc to compare base-model and Guardian-corrected MD trajectories.
 """
@@ -59,7 +59,7 @@ def kabsch_rmsd(P: np.ndarray, Q: np.ndarray) -> float:
 def compute_stability(frames: Iterable, bond_break_ratio: float = 1.6) -> StabilityMetrics:
     """Walk a trajectory (iterable of ASE Atoms) and compute summary metrics.
 
-    `bond_break_ratio` defines what counts as a "broken" bond at the final frame —
+    `bond_break_ratio` defines what counts as a "broken" bond at the final frame --
     1.6x the initial bond length is the standard threshold used in MD stability papers.
     """
     frames = list(frames)

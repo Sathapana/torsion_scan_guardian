@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel duplicate runs on the same ref (e.g. force-push to a PR branch).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pytest (Linux / Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install CPU-only PyTorch (small wheel, fast install)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+
+      - name: Install runtime dependencies
+        # Only the deps needed by the fast unit-test suite. mace-torch is intentionally
+        # NOT installed here — the smoke test that imports it is gated by RUN_MACE_SMOKE.
+        run: |
+          pip install \
+            numpy \
+            scipy \
+            ase \
+            rdkit \
+            pydantic \
+            pyyaml \
+            matplotlib \
+            tqdm \
+            pytest
+
+      - name: Install the guardian package (editable)
+        run: pip install -e .
+
+      - name: Show installed versions
+        run: |
+          python -c "import sys, torch, ase, rdkit, pydantic, numpy; print('python', sys.version); print('torch', torch.__version__); print('ase', ase.__version__); print('rdkit', rdkit.__version__); print('pydantic', pydantic.__version__); print('numpy', numpy.__version__)"
+
+      - name: Run pytest (fast suite)
+        # RUN_MACE_SMOKE is unset → the MACE-OFF download/inference smoke test is skipped.
+        run: pytest -v --tb=short
+
+      - name: Smoke-test the CLI
+        run: |
+          python -m guardian.cli --help > /dev/null
+          python -c "from guardian.config import load_config; cfg = load_config('config/default.yaml'); print('loaded config for', cfg.molecule.smiles)"

@@ -1,5 +1,9 @@
 # Torsion Scan Guardian
 
+[![CI](https://github.com/Sathapana/torsion_scan_guardian/actions/workflows/ci.yml/badge.svg)](https://github.com/Sathapana/torsion_scan_guardian/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
+
 Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible drug-like molecules. Detects ML force-field uncertainty in real time, acquires GFN-FF reference labels for the flagged geometries, and re-fine-tunes the ensemble on the fly.
 
 **Status:** Phase 0–5 complete (verified active-learning instrument running end-to-end on CPU and GPU). Phase 6 (demonstrating stabilisation of a baseline-collapsing trajectory) is the next experimental milestone.
@@ -80,7 +84,7 @@ See [REPORT.md §12.5–12.6](REPORT.md) for the full long-run demo and AL-vs-ba
 Both runs stable — AL does not destabilise. To demonstrate AL *stabilising a divergent baseline*, a molecule outside MACE-OFF's coverage is needed (Phase 6, see [REPORT.md §12.7](REPORT.md)).
 
 ## License
-TBD — no license file yet; treat as all-rights-reserved until one is added.
+[MIT](LICENSE) for the code in this repository. Third-party models (notably MACE-OFF23 under the Academic Software License) retain their own terms — see LICENSE for the full list.
 
 ## Author
 Sathapana Chawananon — Data Science portfolio, Computational Drug Discovery.

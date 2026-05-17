@@ -46,6 +46,10 @@ Open [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb) (single-
 
 **First time on Colab? Read [`Colab_WAY.md`](Colab_WAY.md)** — full tutorial, tips, and the 12 problems we hit (with fixes) so you don't re-hit them.
 
+### Thunder Compute (paid GPU, VSCode-integrated)
+
+If Colab keeps disconnecting on your sweep, or you want a proper IDE: see [`Thunder_WAY.md`](Thunder_WAY.md) for the Thunder Compute + VSCode Remote-SSH setup. ~$0.50 for a 7-molecule sweep on a T4 spot instance, with no idle timeout and persistent storage.
+
 ## What the pipeline actually does
 
 ```

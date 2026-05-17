@@ -1,0 +1,22 @@
+# Keep the docker build context small: ship only the source + configs + seed data.
+runs/
+wandb/
+*.traj
+*.log
+*.pt
+*.ckpt
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+.env
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+
+.git/
+.gitignore

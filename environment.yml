@@ -1,0 +1,24 @@
+name: guardian
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.11
+  - pip
+  - pytorch
+  - pytorch_geometric
+  - ase
+  - rdkit
+  - tblite-python
+  - xtb-python
+  - numpy
+  - scipy
+  - pyyaml
+  - pydantic
+  - matplotlib
+  - tqdm
+  - pytest
+  - pip:
+      - mace-torch
+      - wandb
+      - nglview

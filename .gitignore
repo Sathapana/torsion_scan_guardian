@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+.env
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+
+data/raw/
+data/processed/
+data/oracle_cache/
+runs/
+wandb/
+*.traj
+*.xyz
+*.log
+
+*.pt
+*.ckpt
+
+# xtb stray outputs (when run with cwd=repo root during debugging)
+charges
+energy
+gradient
+wbo
+xtbrestart
+xtbtopo.mol
+*.engrad
+
+# mace training stray valid-indices files (mace writes these to cwd)
+*_valid_indices_*.txt
+
+# Build/test artifacts in repo root
+runs_*.log
+help.log
+err.log
+
+# Claude Code session settings
+.claude/
+

@@ -1,0 +1,48 @@
+molecule:
+  smiles: "CC(C)Cc1ccc(C(C)C(=O)O)cc1"   # ibuprofen
+  charge: 0
+  multiplicity: 1
+
+md:
+  temperature_K: 300
+  timestep_fs: 0.5
+  friction: 0.01
+  total_steps: 5000        # demo size; bump to 200000+ once Phase 4 fine-tuning is live
+  log_every: 50
+  checkpoint_every: 100
+
+model:
+  backbone: mace-off-small
+  ensemble_mode: input-perturbation   # Phase 1 stand-in; swap to "seed-fine-tune" in Phase 2
+  n_probes: 3
+  position_noise_A: 0.005
+  device: cuda                         # falls back to cpu if no GPU
+  dtype: float32
+
+uncertainty:
+  metric: max_atom_force_std    # eV/A
+  threshold: 1.67               # calibrated on relaxed ibuprofen (p99 * 1.5)
+  warmup_steps: 100             # ignore triggers before this
+
+oracle:
+  method: gfn-ff
+  perturb_cloud:
+    enabled: true
+    n_samples: 5
+    dihedral_jitter_deg: 15.0
+
+training:
+  lr: 1.0e-4
+  epochs_per_cycle: 5
+  batch_size: 8
+  grad_clip: 10.0
+  ema_decay: 0.999
+  val_force_mae_regression_tol: 0.10   # reject update if val MAE worsens > 10%
+
+io:
+  run_dir: runs/
+  oracle_cache: data/oracle_cache/
+
+wandb:
+  enabled: false
+  project: torsion-scan-guardian

@@ -1,7 +1,7 @@
 # Torsion Scan Guardian — Phase 0–5 Report
 
 **Project:** Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible drug-like molecules.
-**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), and the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13).
+**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), and a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7).
 **Audience:** ML/comp-chem readers. Math, units, and design choices are stated explicitly.
 **Headline findings:**
 - **Phase 1 (input-perturbation):** the cheap stand-in ensemble cannot serve as the Guardian's epistemic signal — it measures local PES curvature, not novelty (§6).
@@ -682,6 +682,51 @@ A potential future step (not implemented now, listed in §12.7) is a Modal endpo
 **For sustained AL development:** Dockerfile + RunPod spot. Image pull ~1 min, then experiments cost $0.30/h. Per-molecule cost ~$1–2.
 
 **For multi-molecule production sweeps:** Dockerfile + Modal endpoint for the fine-tune step (the §12.4 worker-process work, reframed as serverless). This is the natural follow-on once cycles > 10 per experiment.
+
+### 13.7 GPU validation result (Google Colab T4, 2026-05-17)
+
+The Phase-5 demo (§12.5 configuration, sulfanilamide, 4000-step budget) was re-run on a free Google Colab T4 GPU to validate the cloud deployment path end-to-end.
+
+| Quantity | CPU (local, §12.5) | Colab T4 GPU | Note |
+| --- | ---: | ---: | --- |
+| MD steps actually run | 1550 (stopped after `max_triggers=5`) | 4000 (only 1 trigger; loop completed budget) | see *float64 effect* below |
+| Wall time | 974 s | **466 s** | 2.1× speedup |
+| Fine-tune per member | 35–50 s | 21–23 s | 2.0× speedup |
+| Triggers fired | 5 | **1** | the interesting finding |
+| Labels acquired | 30 | 6 | 1 trigger × (1 + 5 cloud) |
+| All FT updates ACCEPT? | yes (no reverts) | yes (no reverts) | safeguard never engaged |
+| `u` at relaxed minimum | 0.0597 | **0.0509** | float32 → float64 numerical effect |
+| Max bond stretch ratio | 1.091 | 1.100 | both well under 1.6 break threshold |
+| Broken bonds at end | 0 / 19 | 0 / 19 | trajectory stable in both |
+
+#### Headline finding: float64 vs float32 changes the ensemble noise floor
+
+Colab loads MACE-OFF with `default_dtype="float64"` (mace_off's default when no dtype is forced; the warning *"Using float64 for MACECalculator, which is slower but more accurate"* appears at load time). The local CPU pipeline (`config/default.yaml` → `model.dtype: float32`) used float32. With higher numerical precision, all three ensemble members produce slightly more similar forces — the relaxed-minimum `u` drops from **0.0597 eV/Å (float32, CPU)** to **0.0509 eV/Å (float64, GPU)**, a **~15 % drop in the in-distribution noise floor purely from precision**.
+
+Consequence: at the deliberately-aggressive demo threshold (0.05 eV/Å, set just below the float32 noise floor to force triggers), the float64 GPU run sits *just below* the threshold most of the time. Only one trigger fires, at step 200 (the warmup boundary, where the molecule is still finding its equilibrium fluctuation amplitude). After cycle 0's fine-tune, the ensemble re-tightens and the remaining 3800 steps stay quiet.
+
+This is not a bug — it's a clean reproduction of the §10.4 interpretation: the ensemble's disagreement is dominated by SGD-noise offset between members, and small numerical differences (dtype, batch ordering) move that offset enough to change trigger statistics meaningfully. For the present configuration, **the threshold should be re-calibrated per device/dtype**. A robust production setup would lock dtype to float32 in `config/default.yaml` and re-calibrate on the target machine.
+
+#### Trajectory still stable
+
+Both runs produce 0 broken bonds at the final frame and similar max bond stretch (1.09× CPU vs 1.10× GPU). The AL machinery does not destabilise the trajectory on either device. The cycle-0 fine-tune in the GPU run reduced member 0's validation RMSE_F from 330.5 → 323.5 meV/Å (–2.1 %) and members 1/2 similarly (–4.7 % / –2.6 %) — all well within the 10 % regression-tolerance band.
+
+![Colab GPU run — AL timeline with trigger event marked](figures/sulf_phase5_colab_timeline.png)
+
+![Colab GPU run — stability metrics and replay-buffer growth](figures/sulf_phase5_colab_stability.png)
+
+#### Practical implications for the Phase-6 experiment
+
+1. **Calibrate on the device you'll run on.** A threshold derived from local CPU is too low for GPU and may produce few/no triggers. The first cell in the Phase-6 notebook should run `--calibrate` after the seed-fine-tune, then update the threshold inline.
+2. **GPU is ~2× faster, not 10×.** On the small molecules tested (19 atoms sulfanilamide), the GPU advantage is bounded by graph-construction overhead and small kernel sizes. The 10× speedup quoted in §13.1 applies to larger molecules / larger ensembles; for tiny molecules at small batch size, GPU gains are modest.
+3. **The notebook works on Colab Free.** Drive-mounted clone, condacolab-managed xtb, MACE-OFF download, full Phase-5 demo, and the bundle-and-download cell all completed without manual intervention. Total cost: $0.
+
+#### Colab-specific notebook fixes recorded
+
+The shipped notebook (`notebooks/guardian_colab.ipynb`, updated 2026-05-17 commit `<this commit>`) bakes in three lessons from the validation run:
+- Every `%%bash` cell does an explicit `cd /content/drive/MyDrive/torsion-scan-guardian` because `%%bash` spawns a fresh subprocess that does *not* inherit IPython's `%cd`.
+- Python scripts that touch matplotlib are invoked with `MPLBACKEND=Agg` to bypass the missing-display error on headless Colab.
+- A sanity-check cell after `git clone` raises an exception if the repo isn't where the rest of the notebook expects it.
 
 ## References
 

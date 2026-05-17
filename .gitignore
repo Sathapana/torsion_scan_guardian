@@ -42,3 +42,6 @@ err.log
 # Claude Code session settings
 .claude/
 
+# Colab-bundle download landing zone (unzip target — figures get copied into figures/ explicitly)
+guardian_results/
+

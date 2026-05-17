@@ -34,9 +34,18 @@ def main() -> None:
 
     foundation = str(Path.home() / ".cache" / "mace" / "MACE-OFF23_small.model")
     if not Path(foundation).exists():
-        raise FileNotFoundError(
-            f"MACE-OFF small not cached at {foundation}; run a Phase-1 inference first to download it."
-        )
+        # Auto-download by invoking mace_off once. This is the same code path that
+        # any first Phase-1 inference would trigger, but explicit so the sweep can
+        # bootstrap a fresh Colab / Docker / new-machine environment with no manual
+        # pre-download step.
+        print(f"[finetune] MACE-OFF small not cached, downloading to {foundation} ...",
+              flush=True)
+        from mace.calculators import mace_off as _mace_off_factory
+        _ = _mace_off_factory(model="small", device="cpu", default_dtype="float32")
+        if not Path(foundation).exists():
+            raise FileNotFoundError(
+                f"MACE-OFF small auto-download did not produce expected file at {foundation}"
+            )
 
     argv = [
         "mace_run_train",

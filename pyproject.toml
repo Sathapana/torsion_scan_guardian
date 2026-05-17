@@ -9,6 +9,34 @@ description = "Torsion Scan Guardian: Active Learning for ML Force Field stabili
 requires-python = ">=3.11"
 readme = "Torsion_Scan_Guardian_Project.md"
 
+# Runtime dependencies. Declared here so a single `uv pip install --system -e .`
+# (or `pip install -e .`) brings up a complete environment. The Colab notebooks
+# use this; CI installs them explicitly; environment.yml mirrors them for the
+# local-conda workflow.
+#
+# NOT included here (must be installed separately):
+#   - xtb: not a Python package; install via conda-forge or the standalone
+#     binary from grimme-lab/xtb releases. See Colab_WAY.md / Thunder_WAY.md /
+#     VastAI_WAY.md for the per-platform install command.
+#   - torch: typically pre-installed on Colab and on PyTorch-base Docker images.
+#     If missing, install separately with the correct CUDA wheel for your GPU.
+dependencies = [
+    "mace-torch",
+    "ase",
+    "rdkit",
+    "matplotlib",
+    "pandas",
+    "pydantic",
+    "pyyaml",
+    "tqdm",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

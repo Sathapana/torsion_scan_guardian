@@ -74,17 +74,21 @@ REPO_DIR = '/content/drive/MyDrive/torsion-scan-guardian'
 
 First run: clones the repo (~5 sec). Subsequent runs: no-op except `cd`.
 
-### Step 3 — install Python dependencies via pip
+### Step 3 — install Python dependencies via `uv`
 
-Colab already has CUDA-enabled PyTorch. We add everything else via pip:
+Colab already has CUDA-enabled PyTorch. All other runtime dependencies are declared in [`pyproject.toml`](pyproject.toml)'s `[project] dependencies`, so a single editable install pulls everything in. We use [`uv`](https://github.com/astral-sh/uv) — a drop-in pip replacement that's ~10× faster.
 
 ```bash
-pip install -q mace-torch ase rdkit matplotlib pandas pydantic pyyaml tqdm pytest numpy
+pip install -q uv
 cd /content/drive/MyDrive/torsion-scan-guardian
-pip install -q -e .
+uv pip install --system -q -e ".[dev]"
 ```
 
-Takes ~3 min. The `cd` is **essential** in `%%bash` cells — see problem #2 below.
+Takes ~20–40 s (vs ~3 min on plain pip). The `[dev]` extras include pytest for the smoke-test cell; drop the suffix if you don't want it.
+
+The `cd` is **essential** in `%%bash` cells — see problem #2 below. The `--system` flag tells `uv` to install into the kernel's current Python environment (not a `.venv/`), which keeps things simple on Colab — the kernel finds the freshly-installed packages without any kernel switching.
+
+**Why not literal `uv sync`?** `uv sync` is uv's project workflow: it creates a `.venv/` and installs there. On Colab the Jupyter kernel uses the system Python, not `.venv/python`, so a literal `uv sync` would require registering and switching kernels mid-session — defeats the "one command" benefit. `uv pip install --system` gives you the same speed without the venv dance.
 
 ### Step 4 — install xtb (for the GFN-FF oracle)
 

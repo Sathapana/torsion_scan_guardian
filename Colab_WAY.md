@@ -4,7 +4,7 @@ Practical tutorial + the complete list of problems we hit and how each was fixed
 
 ## TL;DR — first-time setup, 10 minutes of clicks
 
-1. Open [`notebooks/guardian_sweep_colab.ipynb`](notebooks/guardian_sweep_colab.ipynb) (multi-molecule sweep) or [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb) (single-molecule demo) on github.com, click *Open in Colab*.
+1. Open [`notebooks/colab/guardian_sweep_colab.ipynb`](notebooks/colab/guardian_sweep_colab.ipynb) (multi-molecule sweep) or [`notebooks/colab/guardian_colab.ipynb`](notebooks/colab/guardian_colab.ipynb) (single-molecule demo) on github.com, click *Open in Colab*.
 2. `Runtime → Change runtime type → T4 GPU`.
 3. Run cells **1 → 2 → 3 → 4 → 5** (verify GPU, mount Drive + clone, sanity-check, pip install, condacolab install).
 4. **Condacolab restarts the kernel automatically.** When it does, re-run cells **1 → 2 → 3 → 4** (don't re-run 5).
@@ -94,8 +94,8 @@ Downloads ~7 MB on first run. Subsequent runs are no-ops.
 
 Two notebooks, two different scopes:
 
-- **[`guardian_colab.ipynb`](notebooks/guardian_colab.ipynb)** — single-molecule. Runs Phase-5 demo on sulfanilamide by default. ~5 min on GPU. Use this for quick iteration on one molecule.
-- **[`guardian_sweep_colab.ipynb`](notebooks/guardian_sweep_colab.ipynb)** — multi-molecule sweep over [`data/molecule_library/candidates.csv`](data/molecule_library/candidates.csv). Configurable via a single editable cell. Use this for Phase-6 work (try several candidates, see which baseline collapses).
+- **[`guardian_colab.ipynb`](notebooks/colab/guardian_colab.ipynb)** — single-molecule. Runs Phase-5 demo on sulfanilamide by default. ~5 min on GPU. Use this for quick iteration on one molecule.
+- **[`guardian_sweep_colab.ipynb`](notebooks/colab/guardian_sweep_colab.ipynb)** — multi-molecule sweep over [`data/molecule_library/candidates.csv`](data/molecule_library/candidates.csv). Configurable via a single editable cell. Use this for Phase-6 work (try several candidates, see which baseline collapses).
 
 The sweep is **idempotent**: re-running after a disconnect skips already-built seed datasets and fine-tune checkpoints. So if Colab disconnects mid-sweep, just re-run the sweep cell and it picks up where it stopped.
 
@@ -193,7 +193,7 @@ Worked locally on Windows, failed on Colab.
 **Symptom:**
 ```
 error: Your local changes to the following files would be overwritten by merge:
-    notebooks/guardian_sweep_colab.ipynb
+    notebooks/colab/guardian_sweep_colab.ipynb
 Please commit your changes or stash them before you merge.
 ```
 

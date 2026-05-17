@@ -17,7 +17,7 @@ Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible
 | [`src/guardian/`](src/guardian/) | The package — ensemble, oracle, controller, training, stability, calibration, MD driver |
 | [`scripts/`](scripts/) | One-shot CLIs: build seed dataset, fine-tune member, OOD probes, AL-vs-baseline comparison |
 | [`config/default.yaml`](config/default.yaml) | Default experiment config |
-| [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb) | Zero-cost Google Colab runbook |
+| [`notebooks/`](notebooks/) | Per-platform notebooks: Colab Free, Thunder Compute, Vast.ai (single-molecule + sweep each) |
 | [`Dockerfile`](Dockerfile) | Reproducible Linux image (CPU default, CUDA via build-arg) |
 | [`tests/`](tests/) | 11 pytest tests (calibration, monitor, replay, stability, ensemble smoke) |
 | [`data/seed/`](data/seed/) | Two GFN-FF labelled seed datasets (ibuprofen, sulfanilamide; 74 frames each) |
@@ -42,7 +42,7 @@ docker run --rm -it -v "$PWD/runs:/app/runs" guardian:cpu \
 ```
 
 ### Google Colab (GPU, free)
-Open [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb) (single-molecule demo) or [`notebooks/guardian_sweep_colab.ipynb`](notebooks/guardian_sweep_colab.ipynb) (multi-molecule sweep over `candidates.csv`), set runtime to T4 GPU, edit the `REPO_URL` cell, run all. Total time: ~10 min for the Phase-5 demo, ~2 h for the 7-molecule sweep.
+Open [`notebooks/colab/guardian_colab.ipynb`](notebooks/colab/guardian_colab.ipynb) (single-molecule demo) or [`notebooks/colab/guardian_sweep_colab.ipynb`](notebooks/colab/guardian_sweep_colab.ipynb) (multi-molecule sweep over `candidates.csv`), set runtime to T4 GPU, edit the `REPO_URL` cell, run all. Total time: ~10 min for the Phase-5 demo, ~2 h for the 7-molecule sweep.
 
 **First time on Colab? Read [`Colab_WAY.md`](Colab_WAY.md)** — full tutorial, tips, and the 12 problems we hit (with fixes) so you don't re-hit them.
 

@@ -37,7 +37,7 @@ When NOT to use Vast.ai:
    vastai create instance <OFFER_ID> --image pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel --disk 30
    ```
 6. **In VSCode**, install **Remote-SSH** extension, connect to the instance via the SSH URL Vast gives you.
-7. **In the connected VSCode**, clone the repo, install deps, open `notebooks/guardian_colab.ipynb` or `notebooks/guardian_sweep_colab.ipynb`, run cells.
+7. **In the connected VSCode**, clone the repo, install deps, open [`notebooks/vastai/guardian_vastai.ipynb`](notebooks/vastai/guardian_vastai.ipynb) (single-molecule demo) or [`notebooks/vastai/guardian_sweep_vastai.ipynb`](notebooks/vastai/guardian_sweep_vastai.ipynb) (multi-molecule sweep), run cells.
 
 **When done — `vastai destroy instance <ID>`.** Or just stop it if you want to keep the disk for next time (still costs disk rent, though minor).
 
@@ -246,7 +246,7 @@ assert os.path.exists(p); print('cache ready:', os.path.getsize(p)//1024, 'KB')
 ### Step 8 — open a notebook in VSCode and run it
 
 1. **File → Open Folder…** → `/root/torsion_scan_guardian` (or wherever you cloned to)
-2. Open `notebooks/guardian_sweep_colab.ipynb` (or `guardian_colab.ipynb`)
+2. Open [`notebooks/vastai/guardian_sweep_vastai.ipynb`](notebooks/vastai/guardian_sweep_vastai.ipynb) (or [`guardian_vastai.ipynb`](notebooks/vastai/guardian_vastai.ipynb) for a single-molecule run)
 3. **Top-right of the notebook** → kernel selector → pick the Python interpreter (usually `/opt/conda/bin/python` in the pytorch image)
 4. Run cells
 

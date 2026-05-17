@@ -20,7 +20,7 @@ Pricing as of writing (verify on the [Thunder pricing page](https://www.thunderc
 2. **Install the Thunder CLI** (`pip install tnr` or per [docs](https://docs.thundercompute.com)) and `tnr login`.
 3. **Create a T4 instance** via the CLI or web console; note the instance ID.
 4. **In VSCode**, install the **Thunder Compute extension** *or* the standard **Remote-SSH extension**. Either way, connect to the instance.
-5. **In the connected VSCode**, clone the repo, install deps, open `notebooks/guardian_colab.ipynb` or `notebooks/guardian_sweep_colab.ipynb`, run cells. Same notebooks as Colab — they're written generically, the only Colab-specific cells (Drive mount, `condacolab`, `google.colab.files.download`) are skipped or replaced.
+5. **In the connected VSCode**, clone the repo, install deps, open [`notebooks/thunder/guardian_thunder.ipynb`](notebooks/thunder/guardian_thunder.ipynb) (single-molecule demo) or [`notebooks/thunder/guardian_sweep_thunder.ipynb`](notebooks/thunder/guardian_sweep_thunder.ipynb) (multi-molecule sweep), run cells. These notebooks are pared-down versions of the Colab ones — environment setup is done from the shell (Step 6 below), so they skip the Drive-mount, `condacolab`, and `google.colab.files.download` cells.
 
 **When done:** `tnr stop <id>` (or "Stop" in the console). **Forgetting this is the #1 way to be surprised by a Thunder bill.**
 
@@ -138,7 +138,7 @@ assert os.path.exists(p); print('cache ready:', os.path.getsize(p)//1024, 'KB')
 ### Step 7 — open a notebook in VSCode and run it
 
 1. **File → Open Folder…** → pick the `torsion_scan_guardian` directory you cloned
-2. Open `notebooks/guardian_sweep_colab.ipynb` (or `guardian_colab.ipynb`)
+2. Open [`notebooks/thunder/guardian_sweep_thunder.ipynb`](notebooks/thunder/guardian_sweep_thunder.ipynb) (or [`guardian_thunder.ipynb`](notebooks/thunder/guardian_thunder.ipynb) for a single-molecule run)
 3. **Top-right of the notebook** → click the kernel selector → pick the `guardian` conda env (or your pip env)
 4. Run cells
 

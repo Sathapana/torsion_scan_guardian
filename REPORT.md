@@ -642,7 +642,7 @@ GPU buys roughly **10× total throughput** on a typical AL run. A 100-cycle prod
 For Phase 6 we ship two deployment artifacts:
 
 1. **[Dockerfile](Dockerfile)** — micromamba-based image, `environment.yml` + `pip install -e .`, pre-downloads MACE-OFF small. Works on RunPod, Lambda, Vast.ai, any Linux GPU host. Image is ~3 GB; one-time push to Docker Hub / GHCR, then ~1 min pull per session.
-2. **[notebooks/guardian_colab.ipynb](notebooks/guardian_colab.ipynb)** — Colab-ready notebook with cells for repo install, dependency setup (Colab already has CUDA PyTorch), MACE-OFF download, and a representative AL run. Total session cost: **$0**.
+2. **[notebooks/colab/guardian_colab.ipynb](notebooks/colab/guardian_colab.ipynb)** — Colab-ready notebook with cells for repo install, dependency setup (Colab already has CUDA PyTorch), MACE-OFF download, and a representative AL run. Total session cost: **$0**.
 
 Per-experiment cost estimate:
 
@@ -670,7 +670,7 @@ The only operational requirement is that the CUDA-enabled `torch` is in the runt
 | Artifact | Purpose | Path |
 | --- | --- | --- |
 | Dockerfile | Reproducible Linux image with all deps + pre-downloaded MACE-OFF | `Dockerfile` |
-| Colab notebook | Zero-cost cloud execution | `notebooks/guardian_colab.ipynb` |
+| Colab notebook | Zero-cost cloud execution | `notebooks/colab/guardian_colab.ipynb` |
 | (Existing) `environment.yml` | Conda env spec, shared by Dockerfile and local dev | `environment.yml` |
 
 A potential future step (not implemented now, listed in §12.7) is a Modal endpoint that wraps `online_finetune_member` as a serverless GPU function. The main controller can then run on a cheap CPU box and pay only for fine-tune-time on GPU — the natural production architecture for 100-cycle sweeps.
@@ -723,7 +723,7 @@ Both runs produce 0 broken bonds at the final frame and similar max bond stretch
 
 #### Colab-specific notebook fixes recorded
 
-The shipped notebook (`notebooks/guardian_colab.ipynb`, updated 2026-05-17 commit `<this commit>`) bakes in three lessons from the validation run:
+The shipped notebook (`notebooks/colab/guardian_colab.ipynb`, updated 2026-05-17 commit `<this commit>`) bakes in three lessons from the validation run:
 - Every `%%bash` cell does an explicit `cd /content/drive/MyDrive/torsion-scan-guardian` because `%%bash` spawns a fresh subprocess that does *not* inherit IPython's `%cd`.
 - Python scripts that touch matplotlib are invoked with `MPLBACKEND=Agg` to bypass the missing-display error on headless Colab.
 - A sanity-check cell after `git clone` raises an exception if the repo isn't where the rest of the notebook expects it.

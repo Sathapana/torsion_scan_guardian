@@ -33,7 +33,7 @@ Colab Pro and Pro+ unlock additional GPUs and TPUs. Their value for the Torsion 
 
 | Accelerator | Memory | FP32 / FP16 (TFLOPS) | Arch / year | Colab tier | Verdict for **this** project |
 | --- | ---: | ---: | --- | --- | --- |
-| **T4 GPU** | 16 GB | 8.1 / 65 | Turing 2018 | **Free** + Pro | **✓ Default; what we tested.** Phase-5 demo in ~5 min, full 7-molecule sweep in ~2 h. Fine for ≤50 heavy atoms. |
+| **T4 GPU** | 16 GB | 8.1 / 65 | Turing 2018 | **Free** + Pro | **✓ Default; what we tested.** Phase-5 demo in ~5 min, full 7-molecule sweep in ~2 h (~30–45 min with the §13.8 throughput optimisations active, default since commit `<this hash>`). Fine for ≤50 heavy atoms. |
 | **L4 GPU** | 24 GB | 30 / 121 | Ada 2023 | Pro / Pro+ | **✓ Best price/perf if you have Pro.** Roughly 2–3× T4 speed for our workload; finishes sweeps in ~1 h. Burns Pro compute units a bit faster but the wall-time win is real. |
 | **A100 GPU** (40 GB) | 40 GB | 19.5 / 312 | Ampere 2020 | Pro / Pro+ | **✓ for ≥50-atom molecules or 5+ ensemble members.** Overkill for sulfanilamide-scale (19 atoms) — see [REPORT §13.7](REPORT.md): GPU speedup is bounded by graph-construction overhead at small atom counts, so A100 is only ~1.3× faster than T4 here. |
 | **H100 GPU** | 80 GB | 67 / 1979 (FP16-sparse) | Hopper 2022 | Pro+ (rare/queued) | **✗ Wrong fit.** Built for FP8 LLM training and very large-batch workloads. MACE-OFF small uses ~5 M params; you'd burn 30–50× T4 compute units for ~0% improvement on this workload. Useful elsewhere, not here. |

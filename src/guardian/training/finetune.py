@@ -65,7 +65,7 @@ def online_finetune_member(
     seed: int,
     epochs: int = 2,
     lr: float = 1e-4,
-    batch_size: int = 8,
+    batch_size: int = 32,
     device: str = "cpu",
     valid_fraction: float = 0.10,
     regression_tol: float = 0.10,

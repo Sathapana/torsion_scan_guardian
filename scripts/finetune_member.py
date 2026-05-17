@@ -22,7 +22,7 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--epochs", type=int, default=5)
     p.add_argument("--lr", type=float, default=5e-4)
-    p.add_argument("--batch-size", type=int, default=8)
+    p.add_argument("--batch-size", type=int, default=32)
     p.add_argument("--valid-fraction", type=float, default=0.18)
     p.add_argument("--out-root", type=Path, default=Path("runs/finetune"))
     p.add_argument("--device", choices=["cpu", "cuda"], default="cpu")

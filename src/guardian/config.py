@@ -48,7 +48,7 @@ class OracleCfg(BaseModel):
 class TrainingCfg(BaseModel):
     lr: float = 1e-4
     epochs_per_cycle: int = 5
-    batch_size: int = 8
+    batch_size: int = 32   # bumped 8 -> 32, see REPORT §13.8
     grad_clip: float = 10.0
     ema_decay: float = 0.999
     val_force_mae_regression_tol: float = 0.1

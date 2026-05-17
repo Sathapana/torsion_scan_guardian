@@ -34,7 +34,7 @@ oracle:
 training:
   lr: 1.0e-4
   epochs_per_cycle: 5
-  batch_size: 8
+  batch_size: 32                                       # bumped 8 -> 32 (better GPU utilisation, see REPORT §13.8)
   grad_clip: 10.0
   ema_decay: 0.999
   val_force_mae_regression_tol: 0.10   # reject update if val MAE worsens > 10%

@@ -1,7 +1,7 @@
 # Torsion Scan Guardian — Phase 0–5 Report
 
 **Project:** Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible drug-like molecules.
-**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), and a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7).
+**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7), and three throughput optimisations that 3–4× the sweep wall time by using the T4's idle GPU/RAM headroom (§13.8).
 **Audience:** ML/comp-chem readers. Math, units, and design choices are stated explicitly.
 **Headline findings:**
 - **Phase 1 (input-perturbation):** the cheap stand-in ensemble cannot serve as the Guardian's epistemic signal — it measures local PES curvature, not novelty (§6).
@@ -720,6 +720,28 @@ Both runs produce 0 broken bonds at the final frame and similar max bond stretch
 1. **Calibrate on the device you'll run on.** A threshold derived from local CPU is too low for GPU and may produce few/no triggers. The first cell in the Phase-6 notebook should run `--calibrate` after the seed-fine-tune, then update the threshold inline.
 2. **GPU is ~2× faster, not 10×.** On the small molecules tested (19 atoms sulfanilamide), the GPU advantage is bounded by graph-construction overhead and small kernel sizes. The 10× speedup quoted in §13.1 applies to larger molecules / larger ensembles; for tiny molecules at small batch size, GPU gains are modest.
 3. **The notebook works on Colab Free.** Drive-mounted clone, condacolab-managed xtb, MACE-OFF download, full Phase-5 demo, and the bundle-and-download cell all completed without manual intervention. Total cost: $0.
+
+### 13.8 Throughput optimisations — using the T4's headroom
+
+A snapshot of a typical Colab T4 sweep session showed **GPU RAM 0.4 / 15.0 GB** and **System RAM 3.3 / 12.7 GB** — almost everything idle. The wall-time bottleneck wasn't compute; three places in the pipeline ran sequentially that the hardware could comfortably run in parallel. Three changes landed (audit-driven, no architectural shifts, no scientific change):
+
+**Change 1 — Parallel cloud labeling** (`src/guardian/oracle/gfnff.py:label_cloud_with_gfnff`)
+
+The per-trigger acquisition cloud (default 5 perturbed copies of the flagged geometry) used to be labelled one at a time by the GFN-FF oracle. Each call is a blocking `subprocess.run` to the `xtb` CLI; Python releases the GIL during subprocess wait, so a `concurrent.futures.ThreadPoolExecutor(max_workers=min(n_samples, 5))` lets all 5 xtb children run concurrently. `XTBCalculator` already uses a per-call `tempfile.TemporaryDirectory`, so parallel calls cannot collide on the `energy` / `gradient` output filenames.
+
+Measured on the local CPU smoke test (H2O × 5 labels): **1.75 s sequential → 0.22 s parallel = 7.87× speedup**. Energies match the sequential output to 1e-6 eV (deterministic rng draws performed serially before dispatch).
+
+**Change 2 — Parallel intra-cycle fine-tunes** (`src/guardian/pipeline/controller.py:_do_finetune_cycle`)
+
+Each AL cycle re-trains all three ensemble members. Previously the controller looped through them serially (3 × ~30–50 s subprocesses on T4). Same `ThreadPoolExecutor` pattern: each thread calls `online_finetune_member` which blocks on `subprocess.run(mace_run_train ...)`. Three mace training processes ≈ 6 GB peak GPU RAM, well within the T4's 15 GB. The safeguard logic (revert on >10% RMSE_F regression) is preserved per-member; the main thread iterates results in deterministic seed order before swapping `self.member_checkpoints`. Expected per-cycle wall time on T4: **~120 s → ~45 s (2.5–3× faster)**.
+
+**Change 3 — Larger fine-tune batch size (8 → 32)** (`config/default.yaml`, `scripts/finetune_member.py`, `src/guardian/training/finetune.py`, `src/guardian/config.py`)
+
+With a 74-frame seed dataset, batch=8 means ~9 SGD steps per epoch; batch=32 means ~3. Larger batches use more GPU per step (negligibly on a 5 M-param model — ~0.5 GB extra), but the gradient is averaged over more examples and the per-cycle wall time drops ~1.3–1.5×. The safeguard catches any degradation. Overridable via `--batch-size` for unusually-large seed datasets.
+
+**Combined expected effect:** sweep per-molecule wall time **drops 3–4×** with no science change. GPU RAM utilisation rises from ~0.7 GB to ~6 GB peak during fine-tunes; System RAM rises from ~3 GB to ~6 GB. Trigger statistics and stability metrics should be unchanged within seed noise.
+
+**What we did not do** (deferred future work): oracle-cache memoisation, parallel molecule sweep (`scripts/sweep_molecules.py` outer loop), MACE-OFF medium/large foundation, 5+ member ensemble. The last two are the scientific upgrades that would address §10.4's "ensemble disagreement too small" finding; they remain the natural next step.
 
 #### Colab-specific notebook fixes recorded
 

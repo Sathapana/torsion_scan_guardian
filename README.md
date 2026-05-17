@@ -42,7 +42,9 @@ docker run --rm -it -v "$PWD/runs:/app/runs" guardian:cpu \
 ```
 
 ### Google Colab (GPU, free)
-Open [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb), set runtime to T4 GPU, edit the `REPO_URL` cell, run all. Total time: ~10 min for the full Phase-5 demo.
+Open [`notebooks/guardian_colab.ipynb`](notebooks/guardian_colab.ipynb) (single-molecule demo) or [`notebooks/guardian_sweep_colab.ipynb`](notebooks/guardian_sweep_colab.ipynb) (multi-molecule sweep over `candidates.csv`), set runtime to T4 GPU, edit the `REPO_URL` cell, run all. Total time: ~10 min for the Phase-5 demo, ~2 h for the 7-molecule sweep.
+
+**First time on Colab? Read [`Colab_WAY.md`](Colab_WAY.md)** — full tutorial, tips, and the 12 problems we hit (with fixes) so you don't re-hit them.
 
 ## What the pipeline actually does
 

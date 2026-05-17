@@ -49,6 +49,9 @@ def main() -> None:
                         help="Position-perturbation sigma (A) for acquisition cloud points.")
     parser.add_argument("--ft-regression-tol", type=float, default=0.10,
                         help="Reject a fine-tune update if val RMSE_F worsens by more than this fraction.")
+    parser.add_argument("--max-parallel-finetunes", type=int, default=3,
+                        help="Cap concurrent mace_run_train subprocesses per cycle (default 3). "
+                             "Lower for smaller GPUs; can raise to N-members for big GPUs.")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -129,6 +132,7 @@ def main() -> None:
         cloud_size=args.cloud_size,
         cloud_jitter_A=args.cloud_jitter,
         ft_regression_tol=args.ft_regression_tol,
+        max_parallel_finetunes=args.max_parallel_finetunes,
     )
     print(f"[guardian] run_dir={ctrl.run_dir}  threshold={cfg.uncertainty.threshold}  "
           f"max_triggers={args.max_triggers}  online_ft={args.online_finetune}")

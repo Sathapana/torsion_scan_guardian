@@ -100,7 +100,7 @@ def ensure_config(row: dict, default_steps: int, default_temperature: float) -> 
             "friction": 0.01,
         },
         "model": {
-            "backbone": "mace-off-small",
+            "backbone": "mace-off-medium",   # bumped small->medium per REPORT §13.9 (scientific upgrade)
             "ensemble_mode": "seed-fine-tune",
             "n_probes": 3,
             "position_noise_A": 0.005,
@@ -166,18 +166,25 @@ def build_seed(row: dict, seed_path: Path) -> int:
     ], f"seed-{row['name']}")[0]
 
 
-def finetune_ensemble(row: dict, seed_path: Path, ft_root: Path, device: str) -> int:
+DEFAULT_N_MEMBERS = 5            # bumped 3 -> 5 per REPORT §13.9 (better tail of disagreement distribution)
+DEFAULT_FOUNDATION_SIZE = "medium"  # bumped small -> medium per REPORT §13.9
+
+
+def finetune_ensemble(row: dict, seed_path: Path, ft_root: Path, device: str,
+                      n_members: int = DEFAULT_N_MEMBERS,
+                      foundation_size: str = DEFAULT_FOUNDATION_SIZE) -> int:
     expected = [ft_root / f"member_seed{s}" / "checkpoints" / f"member_seed{s}_run-{s}.model"
-                for s in (0, 1, 2)]
+                for s in range(n_members)]
     if all(p.exists() for p in expected):
-        print(f"[sweep] all 3 members exist at {ft_root.relative_to(REPO_ROOT)} -- skip fine-tune")
+        print(f"[sweep] all {n_members} members exist at {ft_root.relative_to(REPO_ROOT)} -- skip fine-tune")
         return 0
-    for s in (0, 1, 2):
+    for s in range(n_members):
         rc, _, _, _ = run_subprocess([
             sys.executable, "scripts/finetune_member.py",
             "--seed", str(s), "--epochs", "5", "--lr", "5e-4",
             "--train-file", str(seed_path), "--out-root", str(ft_root),
             "--device", device,
+            "--foundation-size", foundation_size,
         ], f"finetune-{row['name']}-seed{s}")
         if rc != 0:
             return rc
@@ -252,13 +259,17 @@ def stability_summary(run_dir: Path) -> dict:
 
 def process_one(row: dict, *, steps: int, temperature: float, device: str,
                 cloud_size: int, max_triggers: int, baseline_only: bool,
-                threshold_override: float | None) -> dict:
+                threshold_override: float | None,
+                n_members: int = DEFAULT_N_MEMBERS,
+                foundation_size: str = DEFAULT_FOUNDATION_SIZE) -> dict:
     name = row["name"]
     print(f"\n========================= {name} =========================")
     result: dict = {
         "name": name, "smiles": row["smiles"],
         "heavy_atoms": int(row["heavy_atoms"]),
         "phase_in_csv": row["phase"],
+        "n_members": n_members,
+        "foundation_size": foundation_size,
     }
     t_total = time.time()
 
@@ -268,13 +279,18 @@ def process_one(row: dict, *, steps: int, temperature: float, device: str,
         result["status"] = "seed-failed"
         return result
 
-    ft_root = REPO_ROOT / "runs" / f"finetune_{name}"
-    if finetune_ensemble(row, seed_path, ft_root, device) != 0:
+    # Per REPORT §13.9, the ft_root is suffixed with the foundation size so
+    # old small-trained artefacts and new medium-trained artefacts coexist
+    # without one overwriting the other.
+    suffix = "" if foundation_size == "small" else f"_{foundation_size}"
+    ft_root = REPO_ROOT / "runs" / f"finetune_{name}{suffix}"
+    if finetune_ensemble(row, seed_path, ft_root, device,
+                         n_members=n_members, foundation_size=foundation_size) != 0:
         result["status"] = "finetune-failed"
         return result
     ckpts = member_paths(ft_root)
-    if len(ckpts) < 3:
-        result["status"] = f"only-{len(ckpts)}-checkpoints-found"
+    if len(ckpts) < n_members:
+        result["status"] = f"only-{len(ckpts)}-of-{n_members}-checkpoints-found"
         return result
 
     if threshold_override is not None:
@@ -331,6 +347,13 @@ def main():
                    help="Skip the AL phase; useful for first-pass screening")
     p.add_argument("--threshold", type=float, default=None,
                    help="Override calibration; same threshold for all molecules")
+    p.add_argument("--n-members", type=int, default=DEFAULT_N_MEMBERS,
+                   help=f"Number of fine-tuned ensemble members (default {DEFAULT_N_MEMBERS}, "
+                        "REPORT §13.9)")
+    p.add_argument("--foundation-size", choices=["small", "medium", "large"],
+                   default=DEFAULT_FOUNDATION_SIZE,
+                   help=f"MACE-OFF foundation size for the ensemble members "
+                        f"(default {DEFAULT_FOUNDATION_SIZE}, REPORT §13.9)")
     args = p.parse_args()
 
     rows = filter_rows(load_candidates(), args.molecules, args.phase_filter)
@@ -351,6 +374,7 @@ def main():
                 device=args.device, cloud_size=args.cloud_size,
                 max_triggers=args.max_triggers, baseline_only=args.baseline_only,
                 threshold_override=args.threshold,
+                n_members=args.n_members, foundation_size=args.foundation_size,
             )
         except Exception as e:
             print(f"[sweep] EXCEPTION on {row['name']}: {e!r}")

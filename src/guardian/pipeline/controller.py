@@ -48,7 +48,8 @@ class GuardianController:
                  cooldown_steps: int = 200,
                  cloud_size: int = 0,
                  cloud_jitter_A: float = 0.05,
-                 ft_regression_tol: float = 0.10):
+                 ft_regression_tol: float = 0.10,
+                 max_parallel_finetunes: int = 3):
         self.cfg = cfg
         self.atoms = atoms
         self.ensemble = ensemble
@@ -71,6 +72,10 @@ class GuardianController:
         self.cloud_size = cloud_size
         self.cloud_jitter_A = cloud_jitter_A
         self.ft_regression_tol = ft_regression_tol
+        # Cap parallel mace_run_train subprocesses so we don't exceed GPU RAM.
+        # ~3 GB per medium-foundation training process, 15 GB T4 -> max 4-5 safely;
+        # default 3 keeps headroom for the inference path that runs concurrently.
+        self.max_parallel_finetunes = max_parallel_finetunes
         self._last_trigger_step = -1
 
         stamp = time.strftime("%Y%m%d-%H%M%S")
@@ -208,7 +213,10 @@ class GuardianController:
             rep.cycle = cycle_idx
             return i, rep
 
-        with ThreadPoolExecutor(max_workers=len(self.member_checkpoints)) as pool:
+        # Cap workers so that with 5-member ensembles we don't try to launch
+        # 5 × 3 GB = 15 GB of training processes simultaneously on a T4.
+        workers = min(self.max_parallel_finetunes, len(self.member_checkpoints))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = [pool.submit(_ft_one, i, p)
                        for i, p in enumerate(self.member_checkpoints)]
             results = [fut.result() for fut in futures]   # blocks; preserves submit order

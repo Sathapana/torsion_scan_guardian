@@ -14,7 +14,7 @@ md:
   checkpoint_every: 100
 
 model:
-  backbone: mace-off-small
+  backbone: mace-off-medium    # bumped small -> medium per REPORT §13.9
   n_probes: 3
   position_noise_A: 0.005
 

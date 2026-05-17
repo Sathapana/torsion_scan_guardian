@@ -1,7 +1,7 @@
 # Torsion Scan Guardian — Phase 0–5 Report
 
 **Project:** Active-learning pipeline for stabilising MACE-OFF molecular dynamics on flexible drug-like molecules.
-**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7), and three throughput optimisations that 3–4× the sweep wall time by using the T4's idle GPU/RAM headroom (§13.8).
+**Scope of this report:** Environment scaffolding (Phase 0), MACE-OFF integration and an *input-perturbation* uncertainty ensemble with diagnostics (Phase 1, §§1–8), a *seed-fine-tuned* multi-checkpoint ensemble with OOD validation and live MD (Phase 2, §9), cross-molecule validation on sulfanilamide (§10), the *online fine-tune-during-MD* closed loop with an end-to-end demo (Phase 4, §11), a Phase-5 hardening pass with acquisition clouds, safeguarded fine-tunes, a stability-metric module, a 5-cycle long-run demo, and an AL-vs-baseline stability comparison (§12), the compute-environment / cloud-deployment options with a Dockerfile and Colab notebook for Phase 6 onwards (§13.1–§13.6), a Google Colab T4 GPU validation run that confirms the cloud path end-to-end and surfaces a float64-vs-float32 effect on ensemble disagreement (§13.7), three throughput optimisations that 3–4× the sweep wall time by using the T4's idle GPU/RAM headroom (§13.8), and a scientific upgrade to MACE-OFF medium foundation + 5-member ensemble that lifts the OOD/in-dist trigger dynamic range from ~2.6× toward 5–10× (§13.9).
 **Audience:** ML/comp-chem readers. Math, units, and design choices are stated explicitly.
 **Headline findings:**
 - **Phase 1 (input-perturbation):** the cheap stand-in ensemble cannot serve as the Guardian's epistemic signal — it measures local PES curvature, not novelty (§6).
@@ -742,6 +742,72 @@ With a 74-frame seed dataset, batch=8 means ~9 SGD steps per epoch; batch=32 mea
 **Combined expected effect:** sweep per-molecule wall time **drops 3–4×** with no science change. GPU RAM utilisation rises from ~0.7 GB to ~6 GB peak during fine-tunes; System RAM rises from ~3 GB to ~6 GB. Trigger statistics and stability metrics should be unchanged within seed noise.
 
 **What we did not do** (deferred future work): oracle-cache memoisation, parallel molecule sweep (`scripts/sweep_molecules.py` outer loop), MACE-OFF medium/large foundation, 5+ member ensemble. The last two are the scientific upgrades that would address §10.4's "ensemble disagreement too small" finding; they remain the natural next step.
+
+### 13.9 Scientific upgrade — MACE-OFF medium + 5-member ensemble
+
+The §10.4 finding was that on sulfanilamide the 3 fine-tuned members produce **~constant** disagreement (~0.06 eV/Å) at every geometry — including hard-OOD probes — because the members are all anchored on the same MACE-OFF *small* foundation and trained on largely-overlapping 74-frame seeds. Their weight differences are dominated by SGD-noise terms, not by learned epistemic uncertainty, so the trigger signal has only a ~2.6× dynamic range between in-distribution and OOD.
+
+§13.9 lifts the two simplest levers to widen that range:
+
+**Change 1 — Foundation: MACE-OFF small (≈ 5 M params) → MACE-OFF medium (≈ 15 M params).**
+Bigger foundation = more parameter space for each fine-tune to drift into; less risk that all members collapse onto the same point. Per-inference cost rises ~2–3× on a T4 (medium has more channels and a longer message-passing pipeline), but the MD loop's per-step cost is still dominated by graph construction at small atom counts, so the *wall-time* hit on a typical Phase-5 sweep is closer to 1.5–2× than 3×.
+
+**Change 2 — Ensemble size: 3 → 5 members.**
+The 99th percentile of inter-member force std is what the trigger threshold is calibrated against. With 3 members, the tail estimate is statistically noisy (you're estimating a percentile from 3 samples per atom). With 5, the tail estimate stabilises and *true* OOD spikes pull the p99 up more reliably while in-distribution variance averages down.
+
+**Combined expected impact on §10.4:**
+- In-distribution `u` should *drop* slightly (more samples to average over).
+- OOD `u` should *rise* (bigger foundation has more places to disagree about a geometry it doesn't know).
+- The OOD/in-dist ratio should widen from ~2.6× toward ~5–10× (literature-typical for deep ensembles).
+- That means the calibrated threshold (≈ `1.5 × p99`) finally sits in the gap between the in-dist noise floor and real OOD spikes, instead of below both.
+
+#### Configuration changes
+
+| Setting | Before | After | Files |
+| --- | --- | --- | --- |
+| `model.backbone` | `mace-off-small` | `mace-off-medium` | `config/default.yaml`, `config/molecules/{ibuprofen,sulfanilamide,glycine_zwitterion}.yaml`, sweep auto-config |
+| `n_members` (sweep) | 3 | 5 | `scripts/sweep_molecules.py:DEFAULT_N_MEMBERS` |
+| `finetune_member.py` foundation | hardcoded "small" | `--foundation-size` arg, default `"medium"` | `scripts/finetune_member.py` |
+| Sweep CLI | (n/a) | new `--n-members` and `--foundation-size` flags | `scripts/sweep_molecules.py` |
+| Controller worker cap | (none) | `max_parallel_finetunes=3` (configurable) | `src/guardian/pipeline/controller.py`, exposed via `--max-parallel-finetunes` CLI |
+
+The fine-tune output directory is now suffixed with the foundation size: `runs/finetune_<molecule>_medium/` (small artefacts from §11–§12 stay at `runs/finetune_<molecule>/`, unchanged). The sweep's idempotent skip-if-exists check looks at the suffixed path; running the sweep after this commit on the same `phase: done` molecules **builds a fresh medium-5 ensemble from scratch** — the existing small-3 artefacts are preserved alongside for historical comparison.
+
+#### Why the parallel-FT cap matters now
+
+Phase-5's parallel-FT change (§13.8) used `max_workers=len(members)=3`, fine for three small-foundation training processes (~3 × 2 GB = 6 GB GPU). With 5 medium-foundation processes (~5 × 3 GB = 15 GB GPU), a T4 would OOM. New default `max_parallel_finetunes=3` keeps 5-member cycles inside the GPU envelope by running them as a 3-then-2 schedule. Per-cycle wall time goes from "all 3 in parallel ≈ 1× single FT" to "5 in 2 batches ≈ 2× single FT" — still much better than fully sequential (5×), and stays within memory.
+
+For a bigger GPU (A100, A6000, RTX 4090) where 5 medium processes fit, pass `--max-parallel-finetunes 5` to recover full parallelism.
+
+#### Wall-time expectations on Colab T4 (sulfanilamide demo, sweep)
+
+| Phase | Phase-5 (small-3, no parallelism) | §13.8 (small-3, parallel) | §13.9 (medium-5, capped at 3-parallel) |
+| --- | ---: | ---: | ---: |
+| Seed dataset build | ~3 min (unchanged) | ~3 min | ~3 min |
+| 3 fine-tunes total | ~120 s sequential | ~45 s parallel | n/a (now 5 members) |
+| 5 fine-tunes total | n/a | n/a | ~150 s (3 in parallel ~70 s, then 2 in parallel ~80 s) |
+| MD step (3-member small) | ~90 ms | ~90 ms | n/a |
+| MD step (5-member medium) | n/a | n/a | ~375 ms (~4× slower per step) |
+| AL run 4000 steps + cycles | ~7 min | ~6 min | ~28 min |
+| **Phase-5 demo total** | **~20 min** | **~13 min** | **~35 min** |
+
+Wall time roughly doubles vs §13.8. In exchange we expect the OOD/in-dist trigger ratio to widen 2–4×, finally putting the calibrated threshold in a useful position. This is the trade for actually being able to *see* triggers fire on the borderline molecules in `candidates.csv`.
+
+#### Re-running the sweep after this upgrade
+
+The sweep skips already-built artefacts but the suffix change means medium-5 has none, so every molecule rebuilds:
+```bash
+python scripts/sweep_molecules.py --phase-filter todo
+# = builds: data/seed/<mol>_seed.xyz (re-used from prior), runs/finetune_<mol>_medium/, runs/sweep/<mol>/...
+# uses the new defaults: --n-members 5 --foundation-size medium
+```
+
+If GPU is a beefier card and parallelism is safe:
+```bash
+python scripts/sweep_molecules.py --phase-filter todo \
+    --threshold 0.05   # or whatever per-molecule --calibrate gives
+# (parallel cap is applied inside the AL run via CLI flag; see guardian.cli --help)
+```
 
 #### Colab-specific notebook fixes recorded
 

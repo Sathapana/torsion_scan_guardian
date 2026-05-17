@@ -12,7 +12,7 @@ md:
   checkpoint_every: 100
 
 model:
-  backbone: mace-off-small
+  backbone: mace-off-medium    # bumped small -> medium per REPORT §13.9 (scientific upgrade)
   ensemble_mode: input-perturbation   # Phase 1 stand-in; swap to "seed-fine-tune" in Phase 2
   n_probes: 3
   position_noise_A: 0.005

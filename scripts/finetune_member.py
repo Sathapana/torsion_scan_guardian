@@ -1,10 +1,15 @@
-"""Fine-tune one MACE-OFF small member on the GFN-FF seed dataset.
+"""Fine-tune one MACE-OFF ensemble member on the GFN-FF seed dataset.
 
 Usage:
   python scripts/finetune_member.py --seed 0 --epochs 5 --lr 5e-4
+  python scripts/finetune_member.py --seed 3 --foundation-size medium --epochs 5
 
 Output: a checkpoint at runs/finetune/member_seed<N>/ that the multi-checkpoint
 ensemble loader can pick up in Step 3 of Phase 2.
+
+Foundation choice (--foundation-size): "small" (~5 M params, faster), "medium"
+(~15 M params, default after the Phase-6 scientific upgrade), or "large"
+(~50 M params, slow but most accurate). See REPORT §13.9 for the rationale.
 """
 import argparse
 import os
@@ -26,25 +31,28 @@ def main() -> None:
     p.add_argument("--valid-fraction", type=float, default=0.18)
     p.add_argument("--out-root", type=Path, default=Path("runs/finetune"))
     p.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    p.add_argument("--foundation-size", choices=["small", "medium", "large"], default="medium",
+                   help="Which MACE-OFF foundation to fine-tune from. Default 'medium' since "
+                        "REPORT §13.9 — larger foundation -> bigger inter-member divergence.")
     args = p.parse_args()
 
     out_dir = args.out_root / f"member_seed{args.seed}"
     out_dir.mkdir(parents=True, exist_ok=True)
     name = f"member_seed{args.seed}"
 
-    foundation = str(Path.home() / ".cache" / "mace" / "MACE-OFF23_small.model")
+    foundation = str(Path.home() / ".cache" / "mace" / f"MACE-OFF23_{args.foundation_size}.model")
     if not Path(foundation).exists():
         # Auto-download by invoking mace_off once. This is the same code path that
         # any first Phase-1 inference would trigger, but explicit so the sweep can
         # bootstrap a fresh Colab / Docker / new-machine environment with no manual
         # pre-download step.
-        print(f"[finetune] MACE-OFF small not cached, downloading to {foundation} ...",
+        print(f"[finetune] MACE-OFF {args.foundation_size} not cached, downloading to {foundation} ...",
               flush=True)
         from mace.calculators import mace_off as _mace_off_factory
-        _ = _mace_off_factory(model="small", device="cpu", default_dtype="float32")
+        _ = _mace_off_factory(model=args.foundation_size, device="cpu", default_dtype="float32")
         if not Path(foundation).exists():
             raise FileNotFoundError(
-                f"MACE-OFF small auto-download did not produce expected file at {foundation}"
+                f"MACE-OFF {args.foundation_size} auto-download did not produce expected file at {foundation}"
             )
 
     argv = [

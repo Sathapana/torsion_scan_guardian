@@ -17,6 +17,8 @@ runs/
 wandb/
 *.traj
 *.xyz
+# Exception: curated GFN-FF seed datasets in data/seed/ are part of the repo.
+!data/seed/*_seed.xyz
 *.log
 
 *.pt

@@ -46,4 +46,5 @@ err.log
 
 # Colab-bundle download landing zone (unzip target — figures get copied into figures/ explicitly)
 guardian_results/
+tmp_sweep/
 
